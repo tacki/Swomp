@@ -1,0 +1,96 @@
+@CHARSET "UTF-8";
+
+/* ------------------------------- */
+/* PAGE Elements
+/* ------------------------------- */
+#important
+{
+    color: yellow;
+    background: red;
+    width: 780px;
+    margin: 0 auto;
+}
+
+#topbar
+{
+    width: auto;
+    display: block;
+    height: 80px;
+}
+
+#navbar
+{
+    width: auto;
+    display: block;
+    height: 24px;
+}
+
+#navbar ul, #navbar ul li
+{
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    float: left;
+}
+
+#navbar a
+{
+    color: #FFFFFF;
+    font-weight: bold;
+}
+
+#navbar a:hover
+{
+    background: #777777;
+}
+
+#navbar li a:link,
+#navbar li a:visited
+{
+    background: #444444;
+    text-decoration: none;
+    height: 24px;
+    line-height: 24px;
+    display: inline;
+    float: left;
+    width: auto;
+    padding: 0px 10px;
+}
+
+#main
+{
+    width: auto;
+    display: block;
+}
+
+#column_left
+{
+    width: 560px;
+    margin-right: 20px;
+    float: left;
+}
+
+#column_right{
+    width: 200px;
+    float: left;
+}
+
+div.spacer
+{
+    clear: both;
+    height: 10px;
+    display: block;
+}
+
+#footer
+{
+    width: auto;
+    display: block;
+    height: 24px;
+}
+
+#footer a
+{
+    color: #666666;
+    text-decoration: underline;
+}
