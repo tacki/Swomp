@@ -1,6 +1,6 @@
 <?php
 /**
- * Array Cache
+ * Memcache Cache
  *
  * @author Markus Schlegel <g42@gmx.net>
  * @copyright Copyright (C) 2011 Markus Schlegel
@@ -12,20 +12,40 @@
  */
 namespace Swomp\Caches;
 use Swomp\Caches\CacheInterface;
+use Memcache;
 
 /**
- * Array Cache
+ * Memcache Cache
  */
-class ArrayCache implements CacheInterface
+class MemcacheCache implements CacheInterface
 {
-    private $data = array();
+    /**
+     * Memcache Object
+     * @var Memcache;
+     */
+    private $memcache;
+
+
+    /**
+     * Initialize with Memcache Object
+     * @param Memcache $memcache
+     */
+    public function __construct($host='localhost', $port=11211)
+    {
+        $this->memcache = new Memcache;
+        $this->memcache->connect($host, $port);
+    }
 
     /**
      * @see Swomp\Caches.CacheInterface::contains()
      */
     public function contains($id)
     {
-        return isset($this->data[$id]);
+        if ($this->fetch($id)) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /**
@@ -33,11 +53,7 @@ class ArrayCache implements CacheInterface
      */
     public function fetch($id)
     {
-        if ($this->contains($id)) {
-            return $this->data[$id];
-        }
-
-        return false;
+        return $this->memcache->get($id);
     }
 
     /**
@@ -45,9 +61,7 @@ class ArrayCache implements CacheInterface
      */
     public function save($id, $data, $lifetime=0)
     {
-        $this->data[$id] = $data;
-
-        return true;
+        return $this->memcache->set($id, $data, 0, $lifetime);
     }
 
     /**
@@ -55,8 +69,6 @@ class ArrayCache implements CacheInterface
      */
     public function delete($id)
     {
-        unset($this->data[$id]);
-
-        return true;
+        return $this->memcache->delete($id);
     }
 }

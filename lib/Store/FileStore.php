@@ -1,7 +1,20 @@
 <?php
+/**
+ * File Store Manager
+ *
+ * @author Markus Schlegel <g42@gmx.net>
+ * @copyright Copyright (C) 2011 Markus Schlegel
+ * @license http://opensource.org/licenses/gpl-license.php GNU Public License
+ */
 
+/**
+ * Namespaces
+ */
 namespace Swomp\Store;
 
+/**
+ * File Store Manager
+ */
 class FileStore
 {
     /**
@@ -29,9 +42,9 @@ class FileStore
     }
 
     /**
-     * Generate Path to the Store File
+     * Get the Path of a File in Store if it exists
      * @param string $filename
-     * @param string $filetype
+     * @param string $type
      * @return string|false
      */
     public function getPath($filename, $type)
@@ -50,7 +63,7 @@ class FileStore
      * @param string $content
      * @return string Path of the added File
      */
-    public function add($filename, $type, $content)
+    public function write($filename, $type, $content)
     {
         $path = $this->createPath($filename, $type);
 
@@ -76,7 +89,7 @@ class FileStore
      * @param string $filename
      * @param string $type
      */
-    public function fetch($filename, $type)
+    public function read($filename, $type)
     {
         if ($this->contains($filename, $type)) {
             return file_get_contents($this->createPath($filename, $type));

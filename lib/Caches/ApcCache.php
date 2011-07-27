@@ -1,6 +1,6 @@
 <?php
 /**
- * Array Cache
+ * APC Cache
  *
  * @author Markus Schlegel <g42@gmx.net>
  * @copyright Copyright (C) 2011 Markus Schlegel
@@ -14,18 +14,16 @@ namespace Swomp\Caches;
 use Swomp\Caches\CacheInterface;
 
 /**
- * Array Cache
+ * APC Cache
  */
-class ArrayCache implements CacheInterface
+class ApcCache implements CacheInterface
 {
-    private $data = array();
-
     /**
      * @see Swomp\Caches.CacheInterface::contains()
      */
     public function contains($id)
     {
-        return isset($this->data[$id]);
+        return apc_exists($id);
     }
 
     /**
@@ -33,11 +31,7 @@ class ArrayCache implements CacheInterface
      */
     public function fetch($id)
     {
-        if ($this->contains($id)) {
-            return $this->data[$id];
-        }
-
-        return false;
+        return apc_fetch($id);
     }
 
     /**
@@ -45,9 +39,7 @@ class ArrayCache implements CacheInterface
      */
     public function save($id, $data, $lifetime=0)
     {
-        $this->data[$id] = $data;
-
-        return true;
+        return apc_store($id, $data, $lifetime);
     }
 
     /**
@@ -55,8 +47,6 @@ class ArrayCache implements CacheInterface
      */
     public function delete($id)
     {
-        unset($this->data[$id]);
-
-        return true;
+        return apc_delete($id);
     }
 }

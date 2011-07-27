@@ -1,10 +1,26 @@
 <?php
+/**
+ * CSS Compressor
+ *
+ * @author Markus Schlegel <g42@gmx.net>
+ * @copyright Copyright (C) 2011 Markus Schlegel
+ * @license http://opensource.org/licenses/gpl-license.php GNU Public License
+ */
 
+/**
+ * Namespaces
+ */
 namespace Swomp\Filters;
 use Swomp\Filters\CompressorInterface;
 
+/**
+ * CSS Compressor
+ */
 class CssCompressor implements CompressorInterface
 {
+    /**
+     * @see Swomp\Filters.CompressorInterface::compress()
+     */
     public function compress($buffer)
     {
         // remove comments

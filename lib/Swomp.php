@@ -1,13 +1,28 @@
 <?php
+/**
+ * Swamp Main Object
+ *
+ * @author Markus Schlegel <g42@gmx.net>
+ * @copyright Copyright (C) 2011 Markus Schlegel
+ * @license http://opensource.org/licenses/gpl-license.php GNU Public License
+ */
+
+/**
+ * Namespaces
+ */
 namespace Swomp;
-use Swomp\Exceptions\DirectoryException;
-use Swomp\Filters\JsCompressor;
-use Swomp\Filters\CssCompressor;
 use Swomp\Caches\CacheInterface;
 use Swomp\Caches\ArrayCache;
-use Swomp\Store\FileStore;
+use Swomp\Elements\Ressource;
+use Swomp\Exceptions\DirectoryException;
+use Swomp\Exceptions\SwompException;
+use Swomp\Filters\JsCompressor;
+use Swomp\Filters\CssCompressor;
 
-class Swomp
+/**
+ * Swamp Main Object
+ */
+class Main
 {
     /**
      * @var array
@@ -25,11 +40,6 @@ class Swomp
     private $fileStoreDirectory = "store";
 
     /**
-     * @var Swomp\Store\FileStore
-     */
-    private $fileStoreManager;
-
-    /**
      * @var array
      */
     private $registeredFiles = array();
@@ -37,7 +47,7 @@ class Swomp
     /**
      * @var int
      */
-    private $cacheLifetime = 3600;
+    private $cacheLifetime = 86400; // one Day
 
     /**
      * Swomp Constructor
@@ -49,9 +59,35 @@ class Swomp
 
         // Default Cache Manager
         $this->cacheManager = new ArrayCache;
+    }
 
-        // File Store Manager
-        $this->fileStoreManager = new FileStore($this->fileStoreDirectory);
+    /**
+     * Return the Source Directories
+     * @return array
+     */
+    public function getSourceDirectory()
+    {
+        return $this->sourceDirs;
+    }
+
+    /**
+     * Set the Source Directory
+     * @param string|array $path
+     * @throws DirectoryException
+     */
+    public function setSourceDirectory($path)
+    {
+        if (!is_array($path)) {
+            $path = array($path);
+        }
+
+        foreach ($path as $entry) {
+            if (!is_readable($entry)) {
+                throw new DirectoryException("Source Directory $entry is not readable");
+            }
+        }
+
+        $this->sourceDirs = $path;
     }
 
     /**
@@ -75,12 +111,12 @@ class Swomp
     }
 
     /**
-     * Return the Source Directories
-     * @return array
+     * Get Cache Manager
+     * @return Swomp\Caches\CacheInterface
      */
-    public function getSourceDirectory()
+    public function getCacheManager()
     {
-        return $this->sourceDirs;
+        return $this->cacheManager;
     }
 
     /**
@@ -93,13 +129,41 @@ class Swomp
     }
 
     /**
-     * Get Cache Manager
-     * @return Swomp\Caches\CacheInterface
+     * Get File Store Directory
+     * @return string
      */
-    public function getCacheManager()
+    public function getFileStoreDirectory()
     {
-        return $this->cacheManager;
+        return $this->fileStoreDirectory;
     }
+
+    /**
+     * Set File Store Directory
+     * @param string $fileStoreDirectory
+     */
+    public function setFileStoreDirectory($fileStoreDirectory)
+    {
+        $this->fileStoreDirectory = $fileStoreDirectory;
+    }
+
+    /**
+     * Get Cache Lifetime
+     * @return int
+     */
+    public function getCacheLifetime()
+    {
+        return $this->cacheLifetime;
+    }
+
+    /**
+     * Set Cache Lifetime
+     * @param int $cacheLifetime
+     */
+    public function setCacheLifetime($cacheLifetime)
+    {
+        $this->cacheLifetime = $cacheLifetime;
+    }
+
 
     /**
      * Return a List of Files from the Source Directories, known to Swomp
@@ -112,15 +176,16 @@ class Swomp
             $this->registerFiles();
         }
 
+        if (!$type) {
+            return $this->registeredFiles;
+        }
+
         $result = array();
-        if ($type == "css" || $type == "js") {
-            foreach ($this->registeredFiles as $filename) {
-                if (pathinfo($filename, PATHINFO_EXTENSION) == $type) {
-                    $result[] = $filename;
-                }
+
+        foreach ($this->registeredFiles as $ressource) {
+            if ($ressource->getType() == $type) {
+                $result[] = $ressource;
             }
-        } else {
-            $result = $this->registeredFiles;
         }
 
         return $result;
@@ -133,209 +198,119 @@ class Swomp
      */
     public function getStorePath($filename)
     {
-        $filepath = $this->findFileInSourceDir($filename);
+        $ressource = $this->findFileInSourceDir($filename);
 
-        return $this->retrieveStorePath($filepath);
-    }
-
-    /**
-     * Get a combined File of all known Css Files
-     * @return string
-     */
-    public function getCombinedCssStorePath()
-    {
-        return $this->retrieveCombinedCssStorePath();
-    }
-
-
-    /**
-     * Retrieve Buffer from Cache (if available)
-     * @param string $filepath Full Path of a File
-     * @param string $filehash Hash of the File
-     * @return string
-     */
-    private function retrieveBufferFromCache($filepath, $filehash=false)
-    {
-        if (!$filehash) {
-            $filehash = $this->generateHash($filepath);
-        }
-
-        if ($this->getCacheManager()->contains($filehash)) {
-            $buffer = $this->getCacheManager()->fetch($filehash);
-        } elseif ($this->getFileStoreManager()->contains($filehash, pathinfo($filepath, PATHINFO_EXTENSION))) {
-            $buffer = $this->getFileStoreManager()->fetch($filehash, pathinfo($filepath, PATHINFO_EXTENSION));
-        } else {
-            // Generate compressed Buffer
-            $buffer = $this->compress($filepath, $filehash);
-            // Add Buffer to Cache and write to Store
-            $this->getCacheManager()->save($filehash, $buffer, $this->cacheLifetime);
-            $this->getFileStoreManager()->add($filehash, pathinfo($filepath, PATHINFO_EXTENSION), $buffer);
-        }
-
-        return $buffer;
-    }
-
-    /**
-     * Retrieve Store Path
-     * @param string $filepath Full Path of a File
-     * @param string $filehash Hash of the File
-     * @return string
-     */
-    private function retrieveStorePath($filepath, $filehash=false)
-    {
-        if (!$filehash) {
-            $filehash = $this->generateHash($filepath);
-        }
-
-        if ($path = $this->getFileStoreManager()->getPath($filehash, pathinfo($filepath, PATHINFO_EXTENSION))) {
+        if ($path = $ressource->getStorePath()) {
             return $path;
         } else {
-            // File does not exist in Store
-            $buffer = $this->retrieveBufferFromCache($filepath, $filehash);
+            $this->createStoreEntry($ressource);
 
-            $path = $this->getFileStoreManager()->add($filehash, pathinfo($filepath, PATHINFO_EXTENSION), $buffer);
+            return $ressource->getStorePath();
         }
-
-        return $path;
     }
 
     /**
-     * Retrieve Combined Css File
+     * Get Combined File
+     * @param string $type Ressource Type (e.g. 'css')
      * @return string;
      */
-    private function retrieveCombinedCssStorePath()
+    public function getCombinedStorePath($type)
     {
-        // Generate Hash from File-Hashes;
-        $filehash = md5(implode("", array_keys($this->getRegisteredFiles("css"))));
+        $content = "";
+        $hash    = "";
 
-        if ($path = $this->getFileStoreManager()->getPath($filehash, "css")) {
-            return $path;
-        } else {
-            $buffer = "";
-
-            foreach ($this->getRegisteredFiles('css') as $filepath) {
-                $buffer .= $this->retrieveBufferFromCache($filepath)."\n";
+        foreach ($this->getRegisteredFiles($type) as $ressource) {
+            if ($this->getCacheManager()->contains($ressource->getHash())) {
+                // Get Ressource from Cache
+                $ressource = $this->getCacheManager()->fetch($ressource->getHash());
+            } elseif ($ressource->loadContentFromStore()) {
+                // Get Ressource from StoreFile
+                $this->getCacheManager()->save($ressource->getHash(), $ressource, $this->cacheLifetime);
+            } else {
+                $this->createStoreEntry($ressource);
+                $this->getCacheManager()->save($ressource->getHash(), $ressource, $this->cacheLifetime);
             }
 
-            $path = $this->getFileStoreManager()->add($filehash, "css", $buffer);
+            $content .= $ressource->getContent() . "\n";
+            $hash    .= $ressource->getHash();
         }
 
-        return $path;
+        if (strlen($content) && strlen($hash)) {
+            $combRessource = new Ressource($this->fileStoreDirectory);
+            $combRessource->setHash(md5($hash));
+            $combRessource->setContent($content);
+            $combRessource->setType($type);
+            $combRessource->writeToStore();
+
+            return $combRessource->getStorePath();
+        } else {
+            throw SwompException("Cannot find any Ressource of this Type ($type)");
+        }
+
     }
 
     /**
-     * Get File Store Manager
-     * @return Swomp\Store\FileStore
+     * Create Store Entry
+     * @param Swomp\Elements\Ressource $ressource File Ressource
      */
-    private function getFileStoreManager()
+    private function createStoreEntry(Ressource $ressource)
     {
-        return $this->fileStoreManager;
+        // Load from Source File
+        $ressource->loadContentFromSource();
+
+        // Compress Content
+        $this->compressContent($ressource);
+
+        // Write Ressource to Store
+        $ressource->writeToStore();
+
+        // Add Ressource to Cache
+        $this->getCacheManager()->save($ressource->getHash(), $ressource, $this->cacheLifetime);
     }
 
     /**
-     * Generate a Hash based on the File Modification Date and the Filename
-     * @param string $filename
-     * @return string
+     * Compress the given Ressource
+     * @param Swomp\Elements\Ressource $ressource File Ressource
      */
-    private function generateHash($filepath)
+    private function compressContent(Ressource $ressource)
     {
-        $fmodtime = filemtime($filepath);
-
-        return md5($filepath.$fmodtime);
-    }
-
-    /**
-     * Compress the given File
-     * @param string $filename Full Path of Filename
-     * @return string Compressed Data
-     */
-    private function compress($filepath, $filehash)
-    {
-        switch (pathinfo($filepath, PATHINFO_EXTENSION)) {
+        switch ($ressource->getType()) {
             case 'css':
-                if ($path = $this->getFileStoreManager()->getPath($filehash, "css")) {
-                    $buffer = file_get_contents($path);
-                } else {
-                    $cssCompressor = new CssCompressor();
-                    $buffer = $cssCompressor->compress(file_get_contents($filepath));
-                }
+                $cssCompressor = new CssCompressor();
+                $buffer = $cssCompressor->compress($ressource->getContent());
+                $ressource->setContent($buffer);
                 break;
 
             case 'js':
-                if ($path = $this->getFileStoreManager()->getPath($filehash, "js")) {
-                    $buffer = file_get_contents($path);
-                } else {
-                    $jsCompressor = new JsCompressor();
-                    $buffer = $jsCompressor->compress(file_get_contents($filepath));
-                }
+                $jsCompressor = new JsCompressor();
+                $buffer = $jsCompressor->compress($ressource->getContent());
+                $ressource->setContent($buffer);
                 break;
         }
-
-        return $buffer;
     }
 
     /**
      * Find File in given Source Dirs
-     * @param string $filepart
-     * @return string Full Path of this file
+     * @param string $filename
+     * @throws DirectoryException
+     * @return Swomp\Elements\Ressource File Ressource
      */
     private function findFileInSourceDir($filename)
     {
-        // Already full Path
-        if (is_file($filename)) {
-            return realpath($filename);
-        }
+        foreach ($this->getRegisteredFiles() as $fileRessource) {
+            if ($filename === $fileRessource->getFilename()) {
+                // Filename found
 
-        foreach ($this->getSourceDirectory() as $sourceDir)
-        {
-            if (is_file($sourceDir.DIRECTORY_SEPARATOR.$filename)) {
-                return realpath($sourceDir.DIRECTORY_SEPARATOR.$filename);
+                return $fileRessource;
+            } elseif ($filename === $fileRessource->getFilepath()) {
+                // Filename was a Full Path (and found)
+
+                return $fileRessource;
             }
+
         }
 
         throw new DirectoryException("Cannot find File $filename in any of our Source Directories");
-    }
-
-    /**
-     * Class Autoloader
-     * @param string $className Called classname
-     */
-    private function autoloader($className) {
-        // Strip our Project Namespace
-        $className = str_replace(__NAMESPACE__.'\\', '', $className);
-        $filename = str_replace('\\', DIRECTORY_SEPARATOR, $className);
-
-        require $filename . '.php';
-    }
-
-    /**
-     * Output the given Buffer and send it to the Browser
-     * @param string $buffer
-     */
-    private function outputCss($buffer)
-    {
-        ob_start("ob_gzhandler");
-        header('Cache-Control: public');
-        header('Expires: ' . gmdate('D, d M Y H:i:s', time() + $this->cacheLifetime) . ' GMT');
-        header("Content-type: text/css");
-
-        echo $buffer;
-        ob_flush();
-    }
-
-    /**
-     * Output the given Buffer and send it to the Browser
-     * @param string $buffer
-     */
-    private function outputJs($buffer)
-    {
-        ob_start("ob_gzhandler");
-        header('Cache-Control: public');
-        header('Expires: ' . gmdate('D, d M Y H:i:s', time() + $this->cacheLifetime) . ' GMT');
-        header("Content-type: application/x-javascript");
-
-        echo $buffer;
-        ob_flush();
     }
 
     /**
@@ -344,13 +319,16 @@ class Swomp
     private function registerFiles()
     {
         foreach ($this->sourceDirs as $directory) {
-            $filelist = $this->getDirList($directory, true, 'files', '/.\.css$|.\.js$/');
+            $files = $this->getDirList($directory, true, 'files', '/.\.css$|.\.js$/');
 
-            // Generate Hashes
-            foreach ($filelist as $filename) {
-                $hash = $this->generateHash($filename);
+            foreach ($files as $file) {
+                // Create Ressource Object
+                $fileRessource = new Ressource($this->fileStoreDirectory);
+                $fileRessource->setFilepath($file);
+                $hash = $fileRessource->generateHash();
+                $fileRessource->setHash($hash);
 
-                $this->registeredFiles[$hash] = $filename;
+                $this->registeredFiles[] = $fileRessource;
             }
         }
     }
@@ -407,5 +385,18 @@ class Swomp
         } else {
             return false;
         }
+    }
+
+    /**
+     * Class Autoloader
+     * @param string $className Called classname
+     */
+    private function autoloader($className) {
+        // Strip our Project Namespace
+        $className = str_replace(__NAMESPACE__.'\\', '', $className);
+        // FQ-Namespace = Pathname
+        $filename = str_replace('\\', DIRECTORY_SEPARATOR, $className);
+
+        require $filename . '.php';
     }
 }

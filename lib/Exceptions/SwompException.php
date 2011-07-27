@@ -1,6 +1,6 @@
 <?php
 /**
- * Directory Exception
+ * Swomp Exception
  *
  * @author Markus Schlegel <g42@gmx.net>
  * @copyright Copyright (C) 2011 Markus Schlegel
@@ -14,8 +14,8 @@ namespace Swomp\Exceptions;
 use Exception;
 
 /**
- * Directory Exception
+ * Swomp Exception
  */
-class DirectoryException extends Exception
+class SwompException extends Exception
 {
 }

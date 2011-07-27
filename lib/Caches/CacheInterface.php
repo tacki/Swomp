@@ -1,7 +1,20 @@
 <?php
+/**
+ * Cache Interface
+ *
+ * @author Markus Schlegel <g42@gmx.net>
+ * @copyright Copyright (C) 2011 Markus Schlegel
+ * @license http://opensource.org/licenses/gpl-license.php GNU Public License
+ */
 
+/**
+ * Namespaces
+ */
 namespace Swomp\Caches;
 
+/**
+ * Cache Interface
+ */
 interface CacheInterface
 {
     /**
