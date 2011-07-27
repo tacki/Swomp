@@ -128,14 +128,14 @@ class Ressource
     }
 
     /**
-     * Generate a Hash based on the File Modification Date and the Filename
+     * Generate a Hash based on the File
      * @throws RessourceException
      * @return bool The generated Hash if successful, else false
      */
     public function generateHash()
     {
         if (is_file($this->getFilepath())) {
-            return md5($this->getFilename . filemtime($this->getFilepath()));
+            return md5_file($this->getFilePath());
         }
 
         throw new RessourceException("Cannot read File {$this->getFilepath()}");

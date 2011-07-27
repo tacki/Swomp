@@ -212,14 +212,29 @@ class Main
     /**
      * Get Combined File
      * @param string $type Ressource Type (e.g. 'css')
+     * @param array $includes Files to include
+     * @param array $excludes Files to exclude
      * @return string;
      */
-    public function getCombinedStorePath($type)
+    public function getCombinedStorePath($type, array $includes=null, array $excludes=null)
     {
         $content = "";
         $hash    = "";
 
         foreach ($this->getRegisteredFiles($type) as $ressource) {
+            // Includes/Excludes handling
+            if ($includes) {
+                if (!in_array($ressource->getFileName(), $includes)) {
+                    continue;
+                }
+            }
+            if ($excludes) {
+                if (in_array($ressource->getFileName(), $excludes)) {
+                    continue;
+                }
+            }
+
+            // Retrieve Ressource
             if ($this->getCacheManager()->contains($ressource->getHash())) {
                 // Get Ressource from Cache
                 $ressource = $this->getCacheManager()->fetch($ressource->getHash());
