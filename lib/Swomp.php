@@ -332,6 +332,20 @@ class Main
     }
 
     /**
+     * Clear the Store and remove all .css and .js in it
+     */
+    public function clearStore()
+    {
+        $files = $this->getDirList($this->getFileStoreDirectory(), true, 'files', '/.\.css$|.\.js$/');
+
+        foreach ($files as $filepath) {
+            if (is_file($filepath)) {
+                unlink($filepath);
+            }
+        }
+    }
+
+    /**
      * Populate Ressource and fill it with all needed Data
      * @param Swomp\Elements\Ressource $ressource
      */
