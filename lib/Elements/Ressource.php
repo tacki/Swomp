@@ -12,6 +12,7 @@
  */
 namespace Swomp\Elements;
 use Swomp\Exceptions\RessourceException;
+use Swomp\Exceptions\DirectoryException;
 use Swomp\Store\FileStore;
 
 /**
@@ -63,7 +64,7 @@ class Ressource
     public function __construct($cacheDirectory)
     {
         if (!is_dir($cacheDirectory)) {
-            throw new DirectoryException("Path to Cache Directory is invalid");
+            throw new DirectoryException("Path to Cache Directory ($cacheDirectory) is invalid");
         }
 
         $this->fileStore = new FileStore($cacheDirectory);
