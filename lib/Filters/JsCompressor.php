@@ -13,6 +13,8 @@
 namespace Swomp\Filters;
 use Swomp\Filters\CompressorInterface;
 
+require(__DIR__.'../../vendor/JSPacker/JavaScriptPacker.php');
+
 /**
  * JS Compressor
  */
@@ -27,31 +29,13 @@ class JsCompressor implements CompressorInterface
         $buffer = preg_replace('!/\*[^*]*\*+([^/][^*]*\*+)*/!', '', $buffer);
         $buffer = preg_replace('!//[^\n\r]*!', '', $buffer);
 
-        // remove tabs
-        $buffer = str_replace("\t", "", $buffer);
+        if (strlen($buffer) > 1024) {
+            $packer = new \JavaScriptPacker($buffer);
 
-        // remove newlines
-        $buffer = str_replace("\n", "", $buffer);
-
-        // remove whitespaces
-        $buffer = preg_replace('/(\n)\n+/', '$1', $buffer);
-        $buffer = preg_replace('/(\n)\ +/', '$1', $buffer);
-        $buffer = preg_replace('/(\r)\r+/', '$1', $buffer);
-        $buffer = preg_replace('/(\r\n)(\r\n)+/', '$1', $buffer);
-        $buffer = preg_replace('/(\ )\ +/', '$1', $buffer);
-
-        // remove spaces before/after colons, commas, semicolons...
-        $buffer = str_replace(array('; ', ' ;', ', ', ': ', ' :', '= ', ' =', '| ', " |", '& ', ' &'),
-                              array(';' , ';' , ',' , ':' , ':' , '=' , '=' , '|' , "|" , '&' , '&' ),
-                              $buffer
-        );
-
-        // remove spaces before/after parentheses
-        $buffer = str_replace(array('( ', ' )', ' (', ') ', '{ ', ' }'),
-                              array('(' , ')' , '(' , ')' , '{' , '}' ),
-                              $buffer
-        );
-
-        return $buffer;
+            return $packer->pack();
+        } else {
+            // dont compress files smaller than 1024 chars
+            return $buffer;
+        }
     }
 }

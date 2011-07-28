@@ -192,7 +192,7 @@ class Main
     }
 
     /**
-     * Get the representation of the given Filename inside our Store
+     * Get the Compiled Path of the given Source-Filename inside our Store
      * @param string $filename
      * @return string
      */
@@ -200,13 +200,10 @@ class Main
     {
         $ressource = $this->findFileInSourceDir($filename);
 
-        if ($path = $ressource->getStorePath()) {
-            return $path;
-        } else {
-            $this->createStoreEntry($ressource);
+        // Load all needed Data into the Ressource
+        $this->populateRessource($ressource);
 
-            return $ressource->getStorePath();
-        }
+        return $ressource->getStorePath();
     }
 
     /**
@@ -234,17 +231,8 @@ class Main
                 }
             }
 
-            // Retrieve Ressource
-            if ($this->getCacheManager()->contains($ressource->getHash())) {
-                // Get Ressource from Cache
-                $ressource = $this->getCacheManager()->fetch($ressource->getHash());
-            } elseif ($ressource->loadContentFromStore()) {
-                // Get Ressource from StoreFile
-                $this->getCacheManager()->save($ressource->getHash(), $ressource, $this->cacheLifetime);
-            } else {
-                $this->createStoreEntry($ressource);
-                $this->getCacheManager()->save($ressource->getHash(), $ressource, $this->cacheLifetime);
-            }
+            // Load all needed Data into the Ressource
+            $this->populateRessource($ressource);
 
             $content .= $ressource->getContent() . "\n";
             $hash    .= $ressource->getHash();
@@ -262,6 +250,104 @@ class Main
             throw SwompException("Cannot find any Ressource of this Type ($type)");
         }
 
+    }
+
+    /**
+     * Output a single File
+     * @param string $filename Name of a File from our Source-Directories
+     */
+    public function output($filename)
+    {
+        ob_start("ob_gzhandler");
+
+        $ressource = $this->findFileInSourceDir($filename);
+
+        switch ($ressource->getType()) {
+            case "css":
+                header("Content-type: text/css");
+                break;
+
+            case "js":
+                header ("content-type: text/javascript");
+                break;
+        }
+        header ("cache-control: must-revalidate; max-age: ".(int)$this->getCacheLifetime());
+        header ("expires: " . gmdate ("D, d M Y H:i:s", time() + (int)$this->getCacheLifetime()) . " GMT");
+
+        // Load all needed Data into the Ressource
+        $this->populateRessource($ressource);
+
+        echo $ressource->getContent();
+
+        ob_flush();
+    }
+
+    /**
+     * Output Combined File
+     * @param string $type Ressource Type (e.g. 'css')
+     * @param array $includes Files to include
+     * @param array $excludes Files to exclude
+     */
+    public function outputCombined($type, array $includes=null, array $excludes=null)
+    {
+        ob_start("ob_gzhandler");
+
+        $content = "";
+
+        foreach ($this->getRegisteredFiles($type) as $ressource) {
+            // Includes/Excludes handling
+            if ($includes) {
+                if (!in_array($ressource->getFileName(), $includes)) {
+                    continue;
+                }
+            }
+            if ($excludes) {
+                if (in_array($ressource->getFileName(), $excludes)) {
+                    continue;
+                }
+            }
+
+            // Load all needed Data into the Ressource
+            $this->populateRessource($ressource);
+
+            $content .= $ressource->getContent() . "\n";
+
+        }
+
+        switch ($type) {
+            case "css":
+                header("Content-type: text/css");
+                break;
+
+            case "js":
+                header ("content-type: text/javascript");
+                break;
+        }
+        header ("cache-control: must-revalidate; max-age: ".(int)$this->getCacheLifetime());
+        header ("expires: " . gmdate ("D, d M Y H:i:s", time() + (int)$this->getCacheLifetime()) . " GMT");
+
+        echo $content;
+
+        ob_flush();
+    }
+
+    /**
+     * Populate Ressource and fill it with all needed Data
+     * @param Swomp\Elements\Ressource $ressource
+     */
+    private function populateRessource($ressource)
+    {
+        // Retrieve Ressource
+        if ($this->getCacheManager()->contains($ressource->getHash())) {
+            // Get Ressource from Cache
+            $ressource = $this->getCacheManager()->fetch($ressource->getHash());
+        } elseif ($ressource->loadContentFromStore()) {
+            // Get Ressource from StoreFile
+            $this->getCacheManager()->save($ressource->getHash(), $ressource, $this->cacheLifetime);
+        } else {
+            $this->createStoreEntry($ressource);
+            $this->getCacheManager()->save($ressource->getHash(), $ressource, $this->cacheLifetime);
+        }
     }
 
     /**
