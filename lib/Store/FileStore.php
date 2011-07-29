@@ -26,20 +26,20 @@ class FileStore
     /**
      * @var string
      */
-    private $cacheDir;
+    private $directory;
 
     /**
-     * FileCache constructor
-     * @param string $cacheDirectory
+     * FileStore constructor
+     * @param string $directory
      * @throws SwompException
      */
-    public function __construct($cacheDirectory)
+    public function __construct($directory)
     {
-        if (!is_dir($cacheDirectory)) {
+        if (!is_dir($directory)) {
             throw new SwompException("Path to Cache Directory is invalid");
         }
 
-        $this->cacheDir = $cacheDirectory;
+        $this->directory = $directory;
     }
 
     /**
@@ -58,6 +58,24 @@ class FileStore
     }
 
     /**
+     * Get Directory
+     * @return string
+     */
+    public function getDirectory()
+    {
+        return $this->directory;
+    }
+
+    /**
+     * Set Directory
+     * @param string$directory
+     */
+    public function setDirectory($directory)
+    {
+        $this->directory = $directory;
+    }
+
+    /**
      * Write content to File
      * @param string $filename
      * @param string $type
@@ -72,7 +90,6 @@ class FileStore
 
         return $path;
     }
-
 
     /**
      * Check if the given Store-File exists
@@ -106,9 +123,9 @@ class FileStore
      */
     public function delete($filename, $type)
     {
-        unlink($this->createPath($filename, $type));
-
-        return true;
+        if ($this->contains($filename, $type)) {
+            unlink($this->createPath($filename, $type));
+        }
     }
 
     /**
@@ -118,6 +135,7 @@ class FileStore
      */
     private function createPath($filename, $type)
     {
-        return $this->cacheDir.DIRECTORY_SEPARATOR.$filename.$this->extension.".$type";
+        return $this->directory.DIRECTORY_SEPARATOR.$filename.$this->extension.".$type";
     }
+
 }

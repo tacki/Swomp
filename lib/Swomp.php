@@ -16,6 +16,7 @@ use Swomp\Caches\ArrayCache;
 use Swomp\Elements\Ressource;
 use Swomp\Exceptions\SwompException;
 use Swomp\Filters\FilterInterface;
+use Swomp\Store\Catalog;
 
 /**
  * Swamp Main Object
@@ -53,6 +54,11 @@ class Main
     private $cacheLifetime = 86400; // one Day
 
     /**
+     * @var array
+     */
+    private $catalog;
+
+    /**
      * Swomp Constructor
      */
     public function __construct()
@@ -62,6 +68,10 @@ class Main
 
         // Default Cache Manager
         $this->cacheManager = new ArrayCache;
+
+        // FileStore Catalog initialization
+        $this->fileStoreDirectory = realpath($this->fileStoreDirectory);
+        $this->catalog            = new Catalog($this->fileStoreDirectory);
 
         // Add default Filters
         $this->addFilter("CssCompressor");
@@ -191,7 +201,9 @@ class Main
      */
     public function setFileStoreDirectory($fileStoreDirectory)
     {
-        $this->fileStoreDirectory = $fileStoreDirectory;
+        $this->fileStoreDirectory = realpath($fileStoreDirectory);
+
+        $this->getCatalog()->setFileStoreDirectory($this->fileStoreDirectory);
     }
 
     /**
@@ -212,6 +224,23 @@ class Main
         $this->cacheLifetime = $cacheLifetime;
     }
 
+    /**
+     * Get Catalog
+     * @return Swomp\Store\Catalog
+     */
+    public function getCatalog()
+    {
+        return $this->catalog;
+    }
+
+    /**
+     * Set Catalog
+     * @param Swomp\Store\Catalog $catalog
+     */
+    public function setCatalog(Catalog $catalog)
+    {
+        $this->catalog = $catalog;
+    }
 
     /**
      * Return a List of Ressources from the Source Directories, known to Swomp
@@ -384,31 +413,16 @@ class Main
      */
     public function clearStore()
     {
-        $files = $this->getDirList($this->getFileStoreDirectory(), true, 'files', '/.\.css$|.\.js$/');
-
-        foreach ($files as $filepath) {
-            if (is_file($filepath)) {
-                unlink($filepath);
+        // Remove Cache Files known to the Catalog
+        foreach ($this->getCatalog()->getRegister() as $entry) {
+            if (is_file($entry['storepath'])) {
+                unlink($entry['storepath']);
             }
         }
-    }
 
-    /**
-     * Populate Ressource and fill it with all needed Data
-     * @param Swomp\Elements\Ressource $ressource
-     */
-    private function populateRessource($ressource)
-    {
-        // Retrieve Ressource
-        if ($this->getCacheManager()->contains($ressource->getHash())) {
-            // Get Ressource from Cache
-            $ressource = $this->getCacheManager()->fetch($ressource->getHash());
-        } elseif ($ressource->loadContentFromStore()) {
-            // Get Ressource from StoreFile
-            $this->getCacheManager()->save($ressource->getHash(), $ressource, $this->cacheLifetime);
-        } else {
-            $this->createStoreEntry($ressource);
-            $this->getCacheManager()->save($ressource->getHash(), $ressource, $this->cacheLifetime);
+        // Remove Catalog File
+        if (is_file($this->getCatalog()->getCatalogPath())) {
+            unlink($this->getCatalog()->getCatalogPath());
         }
     }
 
@@ -442,6 +456,25 @@ class Main
                 $buffer = $filter->apply($ressource->getContent());
                 $ressource->setContent($buffer);
             }
+        }
+    }
+
+    /**
+     * Populate Ressource and fill it with all needed Data
+     * @param Swomp\Elements\Ressource $ressource
+     */
+    private function populateRessource($ressource)
+    {
+        // Retrieve Ressource
+        if ($this->getCacheManager()->contains($ressource->getHash())) {
+            // Get Ressource from Cache
+            $ressource = $this->getCacheManager()->fetch($ressource->getHash());
+        } elseif ($ressource->loadContentFromStore()) {
+            // Get Ressource from StoreFile
+            $this->getCacheManager()->save($ressource->getHash(), $ressource, $this->cacheLifetime);
+        } else {
+            $this->createStoreEntry($ressource);
+            $this->getCacheManager()->save($ressource->getHash(), $ressource, $this->cacheLifetime);
         }
     }
 

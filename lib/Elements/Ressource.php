@@ -266,4 +266,17 @@ class Ressource
         }
     }
 
+    /**
+     * Remove the File from Store
+     * @throws SwompException
+     */
+    public function removeFromStore()
+    {
+        if ($this->getHash() && $this->getType()) {
+            $this->getFileStore()->delete($this->getHash(), $this->getType());
+        } else {
+            throw new SwompException("Cannot remove from Store - Hash and Type is required");
+        }
+    }
+
 }
