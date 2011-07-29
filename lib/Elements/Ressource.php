@@ -11,8 +11,7 @@
  * Namespaces
  */
 namespace Swomp\Elements;
-use Swomp\Exceptions\RessourceException;
-use Swomp\Exceptions\DirectoryException;
+use Swomp\Exceptions\SwompException;
 use Swomp\Store\FileStore;
 
 /**
@@ -59,12 +58,12 @@ class Ressource
     /**
      * Ressource constructor
      * @param string $cacheDirectory
-     * @throws DirectoryException
+     * @throws SwompException
      */
     public function __construct($cacheDirectory)
     {
         if (!is_dir($cacheDirectory)) {
-            throw new DirectoryException("Path to Cache Directory ($cacheDirectory) is invalid");
+            throw new SwompException("Path to Cache Directory ($cacheDirectory) is invalid");
         }
 
         $this->fileStore = new FileStore($cacheDirectory);
@@ -130,7 +129,7 @@ class Ressource
 
     /**
      * Generate a Hash based on the File
-     * @throws RessourceException
+     * @throws SwompException
      * @return bool The generated Hash if successful, else false
      */
     public function generateHash()
@@ -139,7 +138,7 @@ class Ressource
             return md5_file($this->getFilePath());
         }
 
-        throw new RessourceException("Cannot read File {$this->getFilepath()}");
+        throw new SwompException("Cannot read File {$this->getFilepath()}");
     }
 
     /**
@@ -224,14 +223,14 @@ class Ressource
 
     /**
      * Load Content of the original Source File into this Ressource
-     * @throws RessourceException
+     * @throws SwompException
      */
     public function loadContentFromSource()
     {
         if (is_file($this->getFilePath())) {
             $this->setContent(file_get_contents($this->getFilePath()));
         } else {
-            throw new RessourceException("Cannot load Content to Ressource from Source {$this->getFilePath()}");
+            throw new SwompException("Cannot load Content to Ressource from Source {$this->getFilePath()}");
         }
     }
 
@@ -251,7 +250,7 @@ class Ressource
 
     /**
      * Write Content to File Store
-     * @throws RessourceException
+     * @throws SwompException
      */
     public function writeToStore()
     {
@@ -263,7 +262,7 @@ class Ressource
 
             $this->setStorePath($path);
         } else {
-            throw new RessourceException("Cannot write to Store - Hash, Type and Content is required");
+            throw new SwompException("Cannot write to Store - Hash, Type and Content is required");
         }
     }
 

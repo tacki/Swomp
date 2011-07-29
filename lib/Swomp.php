@@ -14,10 +14,8 @@ namespace Swomp;
 use Swomp\Caches\CacheInterface;
 use Swomp\Caches\ArrayCache;
 use Swomp\Elements\Ressource;
-use Swomp\Exceptions\DirectoryException;
 use Swomp\Exceptions\SwompException;
-use Swomp\Filters\JsCompressor;
-use Swomp\Filters\CssCompressor;
+use Swomp\Filters\FilterInterface;
 
 /**
  * Swamp Main Object
@@ -42,7 +40,12 @@ class Main
     /**
      * @var array
      */
-    private $registeredFiles = array();
+    private $ressources = array();
+
+    /**
+     * @var array
+     */
+    private $filters = array();
 
     /**
      * @var int
@@ -59,6 +62,10 @@ class Main
 
         // Default Cache Manager
         $this->cacheManager = new ArrayCache;
+
+        // Add default Filters
+        $this->addFilter("CssCompressor");
+        $this->addFilter("JsCompressor");
     }
 
     /**
@@ -73,7 +80,7 @@ class Main
     /**
      * Set the Source Directory
      * @param string|array $path
-     * @throws DirectoryException
+     * @throws SwompException
      */
     public function setSourceDirectory($path)
     {
@@ -83,7 +90,7 @@ class Main
 
         foreach ($path as $entry) {
             if (!is_readable($entry)) {
-                throw new DirectoryException("Source Directory $entry is not readable");
+                throw new SwompException("Source Directory $entry is not readable");
             }
         }
 
@@ -93,7 +100,7 @@ class Main
     /**
      * Add a source Directory
      * @param string|array $path
-     * @throws Swomp\Exceptions\DirectoryException
+     * @throws Swomp\Exceptions\SwompException
      */
     public function addSourceDirectory($path)
     {
@@ -103,12 +110,53 @@ class Main
 
         foreach ($path as $entry) {
             if (!is_readable($entry)) {
-                throw new DirectoryException("Source Directory $entry is not readable");
+                throw new SwompException("Source Directory $entry is not readable");
             }
         }
 
         $this->sourceDirs = array_merge($this->sourceDirs, $path);
     }
+
+    /**
+     * Add a Filter
+     * @param string|FilterInterface $filter Filtername or instance of FilterInterface
+     * @param int $priority Lower Priority = earlier call
+     * @throws SwompException
+     */
+    public function addFilter($filter, $priority=50)
+    {
+        // choose the right priority
+        while (isset($this->filters[$priority])) {
+            $priority++;
+        }
+
+        if ($filter instanceof FilterInterface) {
+            $this->filters[$priority] = $filter;
+
+            ksort($this->filters);
+        } else {
+            $filtername = ucfirst($filter);
+            $classname  = "Swomp\\Filters\\$filtername";
+
+            if (class_exists($classname)) {
+                $this->filters[$priority] = new $classname;
+
+                ksort($this->filters);
+            } else {
+                throw new SwompException("Cannot find Filter $filtername");
+            }
+        }
+    }
+
+    /**
+     * Get Filters
+     * @return array
+     */
+    public function getFilters()
+    {
+        return $this->filters;
+    }
+
 
     /**
      * Get Cache Manager
@@ -166,23 +214,23 @@ class Main
 
 
     /**
-     * Return a List of Files from the Source Directories, known to Swomp
+     * Return a List of Ressources from the Source Directories, known to Swomp
      * @param $type css|js
      * @return array
      */
-    public function getRegisteredFiles($type=false)
+    public function getRessources($type=false)
     {
-        if (!count($this->registeredFiles)) {
-            $this->registerFiles();
+        if (!count($this->ressources)) {
+            $this->registerRessources();
         }
 
         if (!$type) {
-            return $this->registeredFiles;
+            return $this->ressources;
         }
 
         $result = array();
 
-        foreach ($this->registeredFiles as $ressource) {
+        foreach ($this->ressources as $ressource) {
             if ($ressource->getType() == $type) {
                 $result[] = $ressource;
             }
@@ -198,7 +246,7 @@ class Main
      */
     public function getStorePath($filename)
     {
-        $ressource = $this->findFileInSourceDir($filename);
+        $ressource = $this->findRessourceByFilename($filename);
 
         // Load all needed Data into the Ressource
         $this->populateRessource($ressource);
@@ -218,7 +266,7 @@ class Main
         $content = "";
         $hash    = "";
 
-        foreach ($this->getRegisteredFiles($type) as $ressource) {
+        foreach ($this->getRessources($type) as $ressource) {
             // Includes/Excludes handling
             if ($includes) {
                 if (!in_array($ressource->getFileName(), $includes)) {
@@ -260,7 +308,7 @@ class Main
     {
         ob_start("ob_gzhandler");
 
-        $ressource = $this->findFileInSourceDir($filename);
+        $ressource = $this->findRessourceByFilename($filename);
 
         switch ($ressource->getType()) {
             case "css":
@@ -294,7 +342,7 @@ class Main
 
         $content = "";
 
-        foreach ($this->getRegisteredFiles($type) as $ressource) {
+        foreach ($this->getRessources($type) as $ressource) {
             // Includes/Excludes handling
             if ($includes) {
                 if (!in_array($ressource->getFileName(), $includes)) {
@@ -373,8 +421,8 @@ class Main
         // Load from Source File
         $ressource->loadContentFromSource();
 
-        // Compress Content
-        $this->compressContent($ressource);
+        // Apply Filter
+        $this->applyFilter($ressource);
 
         // Write Ressource to Store
         $ressource->writeToStore();
@@ -384,66 +432,59 @@ class Main
     }
 
     /**
-     * Compress the given Ressource
+     * Apply all registered Filters
      * @param Swomp\Elements\Ressource $ressource File Ressource
      */
-    private function compressContent(Ressource $ressource)
+    private function applyFilter(Ressource $ressource)
     {
-        switch ($ressource->getType()) {
-            case 'css':
-                $cssCompressor = new CssCompressor();
-                $buffer = $cssCompressor->compress($ressource->getContent());
+        foreach ($this->getFilters() as $filter) {
+            if (in_array($ressource->getType(), $filter->getTypes())) {
+                $buffer = $filter->apply($ressource->getContent());
                 $ressource->setContent($buffer);
-                break;
-
-            case 'js':
-                $jsCompressor = new JsCompressor();
-                $buffer = $jsCompressor->compress($ressource->getContent());
-                $ressource->setContent($buffer);
-                break;
+            }
         }
     }
 
     /**
      * Find File in given Source Dirs
      * @param string $filename
-     * @throws DirectoryException
+     * @throws SwompException
      * @return Swomp\Elements\Ressource File Ressource
      */
-    private function findFileInSourceDir($filename)
+    private function findRessourceByFilename($filename)
     {
-        foreach ($this->getRegisteredFiles() as $fileRessource) {
-            if ($filename === $fileRessource->getFilename()) {
+        foreach ($this->getRessources() as $ressource) {
+            if ($filename === $ressource->getFilename()) {
                 // Filename found
 
-                return $fileRessource;
-            } elseif ($filename === $fileRessource->getFilepath()) {
+                return $ressource;
+            } elseif ($filename === $ressource->getFilepath()) {
                 // Filename was a Full Path (and found)
 
-                return $fileRessource;
+                return $ressource;
             }
 
         }
 
-        throw new DirectoryException("Cannot find File $filename in any of our Source Directories");
+        throw new SwompException("Cannot find File $filename in any of our Source Directories");
     }
 
     /**
-     * Register Files in all known Source Directories
+     * Register Ressources in all known Source Directories
      */
-    private function registerFiles()
+    private function registerRessources()
     {
         foreach ($this->sourceDirs as $directory) {
             $files = $this->getDirList($directory, true, 'files', '/.\.css$|.\.js$/');
 
-            foreach ($files as $file) {
+            foreach ($files as $filepath) {
                 // Create Ressource Object
-                $fileRessource = new Ressource($this->fileStoreDirectory);
-                $fileRessource->setFilepath($file);
-                $hash = $fileRessource->generateHash();
-                $fileRessource->setHash($hash);
+                $ressource = new Ressource($this->fileStoreDirectory);
+                $ressource->setFilepath($filepath);
+                $hash = $ressource->generateHash();
+                $ressource->setHash($hash);
 
-                $this->registeredFiles[] = $fileRessource;
+                $this->ressources[] = $ressource;
             }
         }
     }

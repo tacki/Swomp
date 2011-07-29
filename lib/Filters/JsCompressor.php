@@ -11,19 +11,27 @@
  * Namespaces
  */
 namespace Swomp\Filters;
-use Swomp\Filters\CompressorInterface;
+use Swomp\Filters\FilterInterface;
 
 require(__DIR__.'../../vendor/JSPacker/JavaScriptPacker.php');
 
 /**
  * JS Compressor
  */
-class JsCompressor implements CompressorInterface
+class JsCompressor implements FilterInterface
 {
     /**
-     * @see Swomp\Filters.CompressorInterface::compress()
+     * @see Swomp\Filters.FilterInterface::getTypes()
      */
-    public function compress($buffer)
+    public function getTypes()
+    {
+        return array("js");
+    }
+
+    /**
+     * @see Swomp\Filters.FilterInterface::apply()
+     */
+    public function apply($buffer)
     {
         // remove comments
         $buffer = preg_replace('!/\*[^*]*\*+([^/][^*]*\*+)*/!', '', $buffer);

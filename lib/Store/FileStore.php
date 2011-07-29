@@ -11,6 +11,7 @@
  * Namespaces
  */
 namespace Swomp\Store;
+use Swomp\Exceptions\SwompException;
 
 /**
  * File Store Manager
@@ -30,12 +31,12 @@ class FileStore
     /**
      * FileCache constructor
      * @param string $cacheDirectory
-     * @throws DirectoryException
+     * @throws SwompException
      */
     public function __construct($cacheDirectory)
     {
         if (!is_dir($cacheDirectory)) {
-            throw new DirectoryException("Path to Cache Directory is invalid");
+            throw new SwompException("Path to Cache Directory is invalid");
         }
 
         $this->cacheDir = $cacheDirectory;

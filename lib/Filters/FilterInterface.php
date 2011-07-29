@@ -15,12 +15,18 @@ namespace Swomp\Filters;
 /**
  * Compressor Interface
  */
-interface CompressorInterface
+interface FilterInterface
 {
     /**
-     * Compress the given Buffer and return the Result
+     * Get Types of Ressources, this Filter is applied to
+     * @return array
+     */
+    public function getTypes();
+
+    /**
+     * Apply the Filter to the Buffer and return the Result
      * @param string $buffer
      * @return string
      */
-    public function compress($buffer);
+    public function apply($buffer);
 }

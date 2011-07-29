@@ -11,17 +11,25 @@
  * Namespaces
  */
 namespace Swomp\Filters;
-use Swomp\Filters\CompressorInterface;
+use Swomp\Filters\FilterInterface;
 
 /**
  * CSS Compressor
  */
-class CssCompressor implements CompressorInterface
+class CssCompressor implements FilterInterface
 {
     /**
-     * @see Swomp\Filters.CompressorInterface::compress()
+     * @see Swomp\Filters.FilterInterface::getTypes()
      */
-    public function compress($buffer)
+    public function getTypes()
+    {
+        return array("css");
+    }
+
+    /**
+     * @see Swomp\Filters.FilterInterface::apply()
+     */
+    public function apply($buffer)
     {
         // remove comments
         $buffer = preg_replace('!/\*[^*]*\*+([^/][^*]*\*+)*/!', '', $buffer);
