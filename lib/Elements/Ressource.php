@@ -115,6 +115,10 @@ class Ressource
      */
     public function getHash()
     {
+        if (!$this->hash) {
+            $this->hash = $this->generateHash();
+        }
+
         return $this->hash;
     }
 

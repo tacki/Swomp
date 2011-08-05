@@ -514,9 +514,6 @@ class Main
                 // Create Ressource Object
                 $ressource = new Ressource($this->fileStoreDirectory);
                 $ressource->setFilepath($filepath);
-                $hash = $ressource->generateHash();
-                $ressource->setHash($hash);
-
                 $this->ressources[] = $ressource;
             }
         }
